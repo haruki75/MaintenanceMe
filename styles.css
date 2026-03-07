@@ -78,6 +78,10 @@ button.danger {
   background: var(--danger);
 }
 
+button.secondary {
+  background: #6c757d;
+}
+
 .layout {
   max-width: 1200px;
   margin: 0 auto;
@@ -210,6 +214,12 @@ select[multiple] {
   font-size: 0.86rem;
 }
 
+.date-range-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.7rem;
+}
+
 .search-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -261,6 +271,11 @@ fieldset label {
   background: #fff;
 }
 
+.task-item.warning {
+  border-color: #d6a300;
+  background: #fffbe8;
+}
+
 .task-title {
   margin: 0 0 0.2rem;
 }
@@ -270,15 +285,47 @@ fieldset label {
   margin: 0.15rem 0;
 }
 
+.task-alert {
+  margin: 0.2rem 0;
+  color: #9a6f00;
+  font-weight: 700;
+}
+
+.task-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .inline-form {
   display: flex;
   gap: 0.6rem;
   align-items: flex-end;
 }
 
+#techniciansDetails summary {
+  cursor: pointer;
+  font-weight: 700;
+  margin-bottom: 0.8rem;
+}
+
+#techniciansDetails[open] summary {
+  margin-bottom: 0.9rem;
+}
+
 .inline-field {
   display: flex;
   gap: 0.55rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.mode-label {
+  margin: 0 0 0.6rem;
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .inline-field > *:first-child {
@@ -295,6 +342,10 @@ fieldset label {
 }
 
 [data-ticket-link-row].hidden {
+  display: none;
+}
+
+.hidden {
   display: none;
 }
 
@@ -342,6 +393,10 @@ fieldset label {
   }
 
   .search-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .date-range-grid {
     grid-template-columns: 1fr;
   }
 }

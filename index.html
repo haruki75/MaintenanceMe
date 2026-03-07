@@ -33,31 +33,39 @@
 
       <section class="panel form-panel">
         <h2>New task</h2>
+        <p id="taskFormModeLabel" class="mode-label">Create mode</p>
         <form id="taskForm">
           <label>
             Template
             <div class="inline-field">
               <select id="taskTemplateSelect" name="template">
-                <option value="">No template</option>
+                <option value="">Select template (auto applies)</option>
                 <option value="ORACLE_DB_SAAS">Oracle DB SAAS</option>
               </select>
               <button id="applyTemplateBtn" type="button">Apply template</button>
             </div>
           </label>
+          <p class="field-hint">Select a template to auto-fill title, tickets and downtime.</p>
 
           <label>
             Task title
             <input name="title" type="text" required maxlength="120" />
           </label>
 
-          <label>
-            Date
-            <input id="taskDateInput" name="date" type="date" required />
-          </label>
+          <div class="date-range-grid">
+            <label>
+              From
+              <input id="taskStartDateInput" name="startDate" type="date" required />
+            </label>
+            <label>
+              To
+              <input id="taskEndDateInput" name="endDate" type="date" required />
+            </label>
+          </div>
 
           <label>
             Technicians
-            <select id="taskTechniciansSelect" name="technicians" multiple required></select>
+            <select id="taskTechniciansSelect" name="technicians" multiple></select>
           </label>
           <p class="field-hint">Use Ctrl/Cmd + click to select multiple technicians.</p>
 
@@ -111,27 +119,32 @@
             <textarea name="notes" rows="3" maxlength="500"></textarea>
           </label>
 
-          <button type="submit">Add task</button>
+          <div class="form-actions">
+            <button id="taskSubmitBtn" type="submit">Add task</button>
+            <button id="cancelEditBtn" type="button" class="secondary hidden">Cancel edit</button>
+          </div>
         </form>
       </section>
 
       <section class="panel technicians-panel">
-        <h2>Technicians</h2>
-        <form id="technicianForm" class="inline-form">
-          <label>
-            Add technician
-            <input
-              id="technicianNameInput"
-              name="technicianName"
-              type="text"
-              placeholder="Jane Doe"
-              maxlength="80"
-              required
-            />
-          </label>
-          <button type="submit">Add technician</button>
-        </form>
-        <ul id="technicianList" class="technician-list"></ul>
+        <details id="techniciansDetails">
+          <summary>Technicians</summary>
+          <form id="technicianForm" class="inline-form">
+            <label>
+              Add technician
+              <input
+                id="technicianNameInput"
+                name="technicianName"
+                type="text"
+                placeholder="Jane Doe"
+                maxlength="80"
+                required
+              />
+            </label>
+            <button type="submit">Add technician</button>
+          </form>
+          <ul id="technicianList" class="technician-list"></ul>
+        </details>
       </section>
 
       <section class="panel search-panel">
@@ -191,9 +204,13 @@
         <div class="task-main">
           <h3 class="task-title"></h3>
           <p class="task-meta"></p>
+          <p class="task-alert"></p>
           <p class="task-notes"></p>
         </div>
-        <button class="danger delete-btn" type="button">Delete</button>
+        <div class="task-actions">
+          <button class="edit-btn" type="button">Edit</button>
+          <button class="danger delete-btn" type="button">Delete</button>
+        </div>
       </li>
     </template>
 

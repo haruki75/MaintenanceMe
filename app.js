@@ -21,6 +21,7 @@ const state = {
   selectedDate: toISODate(new Date()),
   tasks: loadedState.tasks,
   technicians: loadedState.technicians,
+  editingTaskId: null,
   search: {
     fromDate: "",
     toDate: "",
@@ -33,10 +34,14 @@ const state = {
 const monthLabel = document.getElementById("monthLabel");
 const calendarGrid = document.getElementById("calendarGrid");
 const taskForm = document.getElementById("taskForm");
-const taskDateInput = document.getElementById("taskDateInput");
+const taskStartDateInput = document.getElementById("taskStartDateInput");
+const taskEndDateInput = document.getElementById("taskEndDateInput");
 const taskTechniciansSelect = document.getElementById("taskTechniciansSelect");
 const taskTemplateSelect = document.getElementById("taskTemplateSelect");
 const applyTemplateBtn = document.getElementById("applyTemplateBtn");
+const taskFormModeLabel = document.getElementById("taskFormModeLabel");
+const taskSubmitBtn = document.getElementById("taskSubmitBtn");
+const cancelEditBtn = document.getElementById("cancelEditBtn");
 const tasksTitle = document.getElementById("tasksTitle");
 const taskList = document.getElementById("taskList");
 const taskItemTemplate = document.getElementById("taskItemTemplate");
@@ -92,6 +97,10 @@ taskTicketCheckboxes.forEach((checkbox) => {
   checkbox.addEventListener("change", () => {
     applyTicketLinkVisibility();
   });
+});
+
+cancelEditBtn.addEventListener("click", () => {
+  resetTaskFormToCreateMode();
 });
 
 searchForm.addEventListener("submit", (event) => {
@@ -177,38 +186,71 @@ taskForm.addEventListener("submit", (event) => {
     .filter(Boolean);
   const tickets = form.getAll("tickets").filter((value) => TICKETS.includes(value));
   const officeLinks = collectOfficeLinks(form, tickets);
+  const startDate = String(form.get("startDate") || "");
+  const endDate = String(form.get("endDate") || "");
 
-  const task = {
-    id: crypto.randomUUID(),
+  const templateKey = String(form.get("template") || "");
+  const template = TASK_TEMPLATES[templateKey] || null;
+  const taskPayload = {
     title: String(form.get("title")).trim(),
-    date: String(form.get("date")),
+    date: startDate,
+    startDate,
+    endDate,
     technicians,
     tickets,
+    expectedTickets: template ? [...template.tickets] : [],
+    templateKey: template ? templateKey : "",
     officeLinks,
     downtimeType: String(form.get("downtimeType")),
     notes: String(form.get("notes") || "").trim(),
-    createdAt: new Date().toISOString(),
   };
 
-  if (!task.title || !task.date || task.technicians.length === 0) {
+  if (!taskPayload.title || !taskPayload.startDate || !taskPayload.endDate) {
     return;
   }
 
-  state.tasks.push(task);
+  if (taskPayload.endDate < taskPayload.startDate) {
+    alert("The end date must be on or after the start date.");
+    return;
+  }
+
+  const now = new Date().toISOString();
+  if (state.editingTaskId) {
+    const index = state.tasks.findIndex((task) => task.id === state.editingTaskId);
+    if (index !== -1) {
+      state.tasks[index] = {
+        ...state.tasks[index],
+        ...taskPayload,
+        updatedAt: now,
+      };
+    }
+  } else {
+    state.tasks.push({
+      ...taskPayload,
+      id: crypto.randomUUID(),
+      createdAt: now,
+    });
+  }
   persistTasks();
 
-  state.selectedDate = task.date;
-  state.currentMonthDate = new Date(`${task.date}T00:00:00`);
-  taskForm.reset();
-  taskTemplateSelect.value = "";
-  applyTicketLinkVisibility();
-  taskDateInput.value = state.selectedDate;
+  state.selectedDate = taskPayload.startDate;
+  state.currentMonthDate = new Date(`${taskPayload.startDate}T00:00:00`);
+  resetTaskFormToCreateMode();
   renderAll();
 });
 
 taskList.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) return;
+
+  if (target.classList.contains("edit-btn")) {
+    const { id } = target.dataset;
+    if (!id) return;
+    const task = state.tasks.find((item) => item.id === id);
+    if (!task) return;
+    enterEditMode(task);
+    return;
+  }
 
   if (target.classList.contains("delete-btn")) {
     const { id } = target.dataset;
@@ -219,14 +261,29 @@ taskList.addEventListener("click", (event) => {
   }
 });
 
+searchResultsList.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return;
+  if (!target.classList.contains("edit-btn")) return;
+  const { id } = target.dataset;
+  if (!id) return;
+  const task = state.tasks.find((item) => item.id === id);
+  if (!task) return;
+  enterEditMode(task);
+});
+
 function renderAll() {
   renderCalendar();
   renderTasksForSelectedDate();
   renderTechnicians();
+  renderTaskFormMode();
   applyTicketLinkVisibility();
   syncSearchInputsFromState();
   renderSearchResults();
-  taskDateInput.value = state.selectedDate;
+  if (!state.editingTaskId) {
+    taskStartDateInput.value = state.selectedDate;
+    taskEndDateInput.value = state.selectedDate;
+  }
 }
 
 function renderCalendar() {
@@ -329,20 +386,28 @@ function renderTasksForSelectedDate() {
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
     .forEach((task) => {
       const node = taskItemTemplate.content.cloneNode(true);
+      const taskItem = node.querySelector(".task-item");
       const title = node.querySelector(".task-title");
       const meta = node.querySelector(".task-meta");
+      const alertNode = node.querySelector(".task-alert");
       const notes = node.querySelector(".task-notes");
       const deleteBtn = node.querySelector(".delete-btn");
+      const editBtn = node.querySelector(".edit-btn");
       const taskMain = node.querySelector(".task-main");
+      const issues = getTaskCompletionIssues(task);
 
       title.textContent = task.title;
       meta.textContent = [
-        `Technicians: ${task.technicians.join(", ")}`,
+        `Range: ${getTaskDateRangeLabel(task)}`,
+        `Technicians: ${task.technicians.length ? task.technicians.join(", ") : "None"}`,
         `Tickets: ${task.tickets.length ? task.tickets.join(", ") : "None"}`,
         `Downtime: ${task.downtimeType === "TOTAL" ? "Total" : "Backend only"}`,
       ].join(" | ");
+      alertNode.textContent = issues.length ? `Attention: ${issues.join(" | ")}` : "";
       notes.textContent = task.notes ? `Notes: ${task.notes}` : "";
       deleteBtn.dataset.id = task.id;
+      editBtn.dataset.id = task.id;
+      if (issues.length) taskItem.classList.add("warning");
       const linksNode = buildSupportLinksNode(task.officeLinks);
       if (linksNode) taskMain.appendChild(linksNode);
 
@@ -351,6 +416,9 @@ function renderTasksForSelectedDate() {
 }
 
 function renderTechnicians() {
+  const selectedValues = new Set(
+    Array.from(taskTechniciansSelect.selectedOptions).map((option) => option.value)
+  );
   taskTechniciansSelect.innerHTML = "";
   technicianList.innerHTML = "";
 
@@ -363,11 +431,12 @@ function renderTechnicians() {
     taskTechniciansSelect.appendChild(placeholder);
     taskTechniciansSelect.required = false;
   } else {
-    taskTechniciansSelect.required = true;
+    taskTechniciansSelect.required = false;
     state.technicians.forEach((name) => {
       const option = document.createElement("option");
       option.value = name;
       option.textContent = name;
+      option.selected = selectedValues.has(name);
       taskTechniciansSelect.appendChild(option);
 
       const listItem = document.createElement("li");
@@ -393,7 +462,9 @@ function renderSearchResults() {
   const filteredTasks = state.tasks
     .filter((task) => matchesSearchFilters(task, state.search))
     .sort((a, b) => {
-      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      const aStart = getTaskStartDate(a);
+      const bStart = getTaskStartDate(b);
+      if (aStart !== bStart) return aStart.localeCompare(bStart);
       return a.createdAt.localeCompare(b.createdAt);
     });
 
@@ -413,22 +484,29 @@ function renderSearchResults() {
   filteredTasks.forEach((task) => {
     const item = document.createElement("li");
     item.className = "task-item";
+    const issues = getTaskCompletionIssues(task);
+    if (issues.length) item.classList.add("warning");
 
     const main = document.createElement("div");
     main.className = "task-main";
 
     const title = document.createElement("h3");
     title.className = "task-title";
-    title.textContent = `${task.title} (${task.date})`;
+    title.textContent = task.title;
 
     const meta = document.createElement("p");
     meta.className = "task-meta";
     meta.textContent = [
-      `Type: ${getDayTypeLabel(parseISODate(task.date))}`,
-      `Technicians: ${task.technicians.join(", ")}`,
+      `Range: ${getTaskDateRangeLabel(task)}`,
+      `Start day type: ${getDayTypeLabel(parseISODate(getTaskStartDate(task)))}`,
+      `Technicians: ${task.technicians.length ? task.technicians.join(", ") : "None"}`,
       `Tickets: ${task.tickets.length ? task.tickets.join(", ") : "None"}`,
       `Downtime: ${task.downtimeType === "TOTAL" ? "Total" : "Backend only"}`,
     ].join(" | ");
+
+    const alertNode = document.createElement("p");
+    alertNode.className = "task-alert";
+    alertNode.textContent = issues.length ? `Attention: ${issues.join(" | ")}` : "";
 
     const notes = document.createElement("p");
     notes.className = "task-notes";
@@ -436,10 +514,20 @@ function renderSearchResults() {
 
     main.appendChild(title);
     main.appendChild(meta);
+    if (issues.length) main.appendChild(alertNode);
     main.appendChild(notes);
     const linksNode = buildSupportLinksNode(task.officeLinks);
     if (linksNode) main.appendChild(linksNode);
+    const actions = document.createElement("div");
+    actions.className = "task-actions";
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "edit-btn";
+    editBtn.dataset.id = task.id;
+    editBtn.textContent = "Edit";
+    actions.appendChild(editBtn);
     item.appendChild(main);
+    item.appendChild(actions);
     searchResultsList.appendChild(item);
   });
 }
@@ -453,18 +541,18 @@ function syncSearchInputsFromState() {
 }
 
 function matchesSearchFilters(task, filters) {
-  if (filters.fromDate && task.date < filters.fromDate) return false;
-  if (filters.toDate && task.date > filters.toDate) return false;
+  const taskStartDate = getTaskStartDate(task);
+  const taskEndDate = getTaskEndDate(task);
+  if (filters.fromDate && taskEndDate < filters.fromDate) return false;
+  if (filters.toDate && taskStartDate > filters.toDate) return false;
 
-  const taskDate = parseISODate(task.date);
   if (filters.dayType !== "ALL") {
-    const taskDayType = getDayType(taskDate);
-    if (taskDayType !== filters.dayType) return false;
+    if (!rangeHasDayType(taskStartDate, taskEndDate, filters.dayType)) return false;
   }
 
   if (filters.quarter !== "ALL") {
     const bounds = getQuarterBounds(Number(normalizeFilterYear(filters.year)), filters.quarter);
-    if (task.date < bounds.fromDate || task.date > bounds.toDate) return false;
+    if (taskEndDate < bounds.fromDate || taskStartDate > bounds.toDate) return false;
   }
 
   return true;
@@ -533,8 +621,106 @@ function buildSupportLinksNode(officeLinks) {
   return container;
 }
 
+function enterEditMode(task) {
+  state.editingTaskId = task.id;
+  taskTemplateSelect.value = task.templateKey || "";
+  taskForm.elements.namedItem("title").value = task.title || "";
+  taskStartDateInput.value = getTaskStartDate(task);
+  taskEndDateInput.value = getTaskEndDate(task);
+  taskForm.elements.namedItem("downtimeType").value = task.downtimeType || "BACKEND";
+  taskForm.elements.namedItem("notes").value = task.notes || "";
+
+  taskTicketCheckboxes.forEach((checkbox) => {
+    checkbox.checked = task.tickets.includes(checkbox.value);
+  });
+  TICKETS.forEach((ticket) => {
+    const input = document.getElementById(OFFICE_LINK_INPUT_IDS[ticket]);
+    if (!input) return;
+    input.value = task.officeLinks?.[ticket] || "";
+  });
+
+  Array.from(taskTechniciansSelect.options).forEach((option) => {
+    option.selected = task.technicians.includes(option.value);
+  });
+
+  renderTaskFormMode();
+  applyTicketLinkVisibility();
+  taskForm.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function resetTaskFormToCreateMode() {
+  state.editingTaskId = null;
+  taskForm.reset();
+  taskTemplateSelect.value = "";
+  applyTicketLinkVisibility();
+  taskStartDateInput.value = state.selectedDate;
+  taskEndDateInput.value = state.selectedDate;
+  renderTaskFormMode();
+}
+
+function renderTaskFormMode() {
+  const isEditing = Boolean(state.editingTaskId);
+  taskFormModeLabel.textContent = isEditing ? "Edit mode" : "Create mode";
+  taskSubmitBtn.textContent = isEditing ? "Save changes" : "Add task";
+  cancelEditBtn.classList.toggle("hidden", !isEditing);
+}
+
+function getTaskCompletionIssues(task) {
+  const issues = [];
+  if (!task.technicians || task.technicians.length === 0) {
+    issues.push("No technician assigned");
+  }
+
+  const expectedTickets = getExpectedTickets(task);
+  if (expectedTickets.length) {
+    const missing = expectedTickets.filter((ticket) => !task.tickets.includes(ticket));
+    if (missing.length) issues.push(`Missing expected tickets: ${missing.join(", ")}`);
+  }
+  return issues;
+}
+
+function getExpectedTickets(task) {
+  if (Array.isArray(task.expectedTickets)) {
+    return task.expectedTickets.filter((ticket) => TICKETS.includes(ticket));
+  }
+  if (task.templateKey && TASK_TEMPLATES[task.templateKey]) {
+    return TASK_TEMPLATES[task.templateKey].tickets.filter((ticket) => TICKETS.includes(ticket));
+  }
+  return [];
+}
+
 function getTasksForDate(dateISO) {
-  return state.tasks.filter((task) => task.date === dateISO);
+  return state.tasks.filter((task) => {
+    const startDate = getTaskStartDate(task);
+    const endDate = getTaskEndDate(task);
+    return dateISO >= startDate && dateISO <= endDate;
+  });
+}
+
+function getTaskStartDate(task) {
+  return typeof task.startDate === "string" && task.startDate ? task.startDate : task.date;
+}
+
+function getTaskEndDate(task) {
+  if (typeof task.endDate === "string" && task.endDate) return task.endDate;
+  return getTaskStartDate(task);
+}
+
+function getTaskDateRangeLabel(task) {
+  const startDate = getTaskStartDate(task);
+  const endDate = getTaskEndDate(task);
+  if (startDate === endDate) return startDate;
+  return `${startDate} -> ${endDate}`;
+}
+
+function rangeHasDayType(startDateISO, endDateISO, dayType) {
+  let cursor = parseISODate(startDateISO);
+  const end = parseISODate(endDateISO);
+  while (cursor <= end) {
+    if (getDayType(cursor) === dayType) return true;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return false;
 }
 
 function persistTasks() {
@@ -596,10 +782,18 @@ function normalizeTasks(value) {
   return value
     .filter((task) => task && typeof task === "object")
     .map((task) => {
+      const startDate = typeof task.startDate === "string" && task.startDate ? task.startDate : task.date;
+      const endDate = typeof task.endDate === "string" && task.endDate ? task.endDate : startDate;
       const normalized = {
         id: typeof task.id === "string" && task.id ? task.id : crypto.randomUUID(),
         title: String(task.title || "").trim(),
-        date: typeof task.date === "string" ? task.date : "",
+        date: typeof startDate === "string" ? startDate : "",
+        startDate: typeof startDate === "string" ? startDate : "",
+        endDate:
+          typeof endDate === "string" && endDate >= startDate ? endDate : typeof startDate === "string" ? startDate : "",
+        templateKey:
+          typeof task.templateKey === "string" && TASK_TEMPLATES[task.templateKey] ? task.templateKey : "",
+        expectedTickets: normalizeExpectedTickets(task.expectedTickets, task.templateKey),
         technicians: normalizeTechnicians(task.technicians),
         tickets: Array.isArray(task.tickets)
           ? task.tickets.map((ticket) => String(ticket)).filter((ticket) => TICKETS.includes(ticket))
@@ -641,6 +835,16 @@ function normalizeOfficeLinks(value) {
     if (typeof raw === "string" && raw.trim()) normalized[ticket] = raw.trim();
   });
   return normalized;
+}
+
+function normalizeExpectedTickets(value, templateKey) {
+  if (Array.isArray(value)) {
+    return value.map((ticket) => String(ticket)).filter((ticket) => TICKETS.includes(ticket));
+  }
+  if (templateKey && TASK_TEMPLATES[templateKey]) {
+    return TASK_TEMPLATES[templateKey].tickets.filter((ticket) => TICKETS.includes(ticket));
+  }
+  return [];
 }
 
 function parseISODate(dateString) {

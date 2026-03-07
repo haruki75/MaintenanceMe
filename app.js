@@ -2,6 +2,18 @@ const APP_STATE_STORAGE_KEY = "maintenance-me-state-v1";
 const TASKS_STORAGE_KEY = "maintenance-me-tasks-v1";
 const TECHNICIANS_STORAGE_KEY = "maintenance-me-technicians-v1";
 const TICKETS = ["SAAS", "DSO", "DEV"];
+const TASK_TEMPLATES = {
+  ORACLE_DB_SAAS: {
+    title: "Oracle DB SAAS maintenance",
+    tickets: ["SAAS", "DEV"],
+    downtimeType: "TOTAL",
+  },
+};
+const OFFICE_LINK_INPUT_IDS = {
+  SAAS: "ticketLinkSAAS",
+  DSO: "ticketLinkDSO",
+  DEV: "ticketLinkDEV",
+};
 const loadedState = loadAppState();
 
 const state = {
@@ -23,6 +35,8 @@ const calendarGrid = document.getElementById("calendarGrid");
 const taskForm = document.getElementById("taskForm");
 const taskDateInput = document.getElementById("taskDateInput");
 const taskTechniciansSelect = document.getElementById("taskTechniciansSelect");
+const taskTemplateSelect = document.getElementById("taskTemplateSelect");
+const applyTemplateBtn = document.getElementById("applyTemplateBtn");
 const tasksTitle = document.getElementById("tasksTitle");
 const taskList = document.getElementById("taskList");
 const taskItemTemplate = document.getElementById("taskItemTemplate");
@@ -39,6 +53,7 @@ const applyQuarterBtn = document.getElementById("applyQuarterBtn");
 const resetFiltersBtn = document.getElementById("resetFiltersBtn");
 const searchResultsTitle = document.getElementById("searchResultsTitle");
 const searchResultsList = document.getElementById("searchResultsList");
+const taskTicketCheckboxes = Array.from(document.querySelectorAll('input[name="tickets"]'));
 
 document.getElementById("prevMonthBtn").addEventListener("click", () => {
   state.currentMonthDate = new Date(
@@ -63,6 +78,20 @@ document.getElementById("todayBtn").addEventListener("click", () => {
   state.currentMonthDate = new Date(today.getFullYear(), today.getMonth(), 1);
   state.selectedDate = toISODate(today);
   renderAll();
+});
+
+applyTemplateBtn.addEventListener("click", () => {
+  applySelectedTemplate();
+});
+
+taskTemplateSelect.addEventListener("change", () => {
+  applySelectedTemplate();
+});
+
+taskTicketCheckboxes.forEach((checkbox) => {
+  checkbox.addEventListener("change", () => {
+    applyTicketLinkVisibility();
+  });
 });
 
 searchForm.addEventListener("submit", (event) => {
@@ -147,6 +176,7 @@ taskForm.addEventListener("submit", (event) => {
     .map((value) => String(value).trim())
     .filter(Boolean);
   const tickets = form.getAll("tickets").filter((value) => TICKETS.includes(value));
+  const officeLinks = collectOfficeLinks(form, tickets);
 
   const task = {
     id: crypto.randomUUID(),
@@ -154,6 +184,7 @@ taskForm.addEventListener("submit", (event) => {
     date: String(form.get("date")),
     technicians,
     tickets,
+    officeLinks,
     downtimeType: String(form.get("downtimeType")),
     notes: String(form.get("notes") || "").trim(),
     createdAt: new Date().toISOString(),
@@ -169,6 +200,8 @@ taskForm.addEventListener("submit", (event) => {
   state.selectedDate = task.date;
   state.currentMonthDate = new Date(`${task.date}T00:00:00`);
   taskForm.reset();
+  taskTemplateSelect.value = "";
+  applyTicketLinkVisibility();
   taskDateInput.value = state.selectedDate;
   renderAll();
 });
@@ -190,6 +223,7 @@ function renderAll() {
   renderCalendar();
   renderTasksForSelectedDate();
   renderTechnicians();
+  applyTicketLinkVisibility();
   syncSearchInputsFromState();
   renderSearchResults();
   taskDateInput.value = state.selectedDate;
@@ -299,6 +333,7 @@ function renderTasksForSelectedDate() {
       const meta = node.querySelector(".task-meta");
       const notes = node.querySelector(".task-notes");
       const deleteBtn = node.querySelector(".delete-btn");
+      const taskMain = node.querySelector(".task-main");
 
       title.textContent = task.title;
       meta.textContent = [
@@ -308,6 +343,8 @@ function renderTasksForSelectedDate() {
       ].join(" | ");
       notes.textContent = task.notes ? `Notes: ${task.notes}` : "";
       deleteBtn.dataset.id = task.id;
+      const linksNode = buildSupportLinksNode(task.officeLinks);
+      if (linksNode) taskMain.appendChild(linksNode);
 
       taskList.appendChild(node);
     });
@@ -400,6 +437,8 @@ function renderSearchResults() {
     main.appendChild(title);
     main.appendChild(meta);
     main.appendChild(notes);
+    const linksNode = buildSupportLinksNode(task.officeLinks);
+    if (linksNode) main.appendChild(linksNode);
     item.appendChild(main);
     searchResultsList.appendChild(item);
   });
@@ -429,6 +468,69 @@ function matchesSearchFilters(task, filters) {
   }
 
   return true;
+}
+
+function applySelectedTemplate() {
+  const templateKey = taskTemplateSelect.value;
+  if (!templateKey || !TASK_TEMPLATES[templateKey]) return;
+
+  const template = TASK_TEMPLATES[templateKey];
+  const titleInput = taskForm.elements.namedItem("title");
+  const downtimeSelect = taskForm.elements.namedItem("downtimeType");
+  if (titleInput) titleInput.value = template.title;
+  if (downtimeSelect) downtimeSelect.value = template.downtimeType;
+
+  taskTicketCheckboxes.forEach((checkbox) => {
+    checkbox.checked = template.tickets.includes(checkbox.value);
+  });
+  applyTicketLinkVisibility();
+}
+
+function applyTicketLinkVisibility() {
+  const selectedTickets = new Set(
+    taskTicketCheckboxes.filter((checkbox) => checkbox.checked).map((checkbox) => checkbox.value)
+  );
+
+  TICKETS.forEach((ticket) => {
+    const row = document.querySelector(`[data-ticket-link-row="${ticket}"]`);
+    const input = document.getElementById(OFFICE_LINK_INPUT_IDS[ticket]);
+    if (!row || !input) return;
+    const visible = selectedTickets.has(ticket);
+    row.classList.toggle("hidden", !visible);
+    if (!visible) input.value = "";
+  });
+}
+
+function collectOfficeLinks(form, tickets) {
+  const officeLinks = {};
+  tickets.forEach((ticket) => {
+    const inputName = OFFICE_LINK_INPUT_IDS[ticket];
+    const value = String(form.get(inputName) || "").trim();
+    if (value) officeLinks[ticket] = value;
+  });
+  return officeLinks;
+}
+
+function buildSupportLinksNode(officeLinks) {
+  const normalized = normalizeOfficeLinks(officeLinks);
+  const entries = Object.entries(normalized);
+  if (entries.length === 0) return null;
+
+  const container = document.createElement("p");
+  container.className = "support-links";
+  const prefix = document.createElement("span");
+  prefix.textContent = "Support links:";
+  container.appendChild(prefix);
+
+  entries.forEach(([office, url]) => {
+    const link = document.createElement("a");
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = office;
+    container.appendChild(link);
+  });
+  return container;
 }
 
 function getTasksForDate(dateISO) {
@@ -502,6 +604,7 @@ function normalizeTasks(value) {
         tickets: Array.isArray(task.tickets)
           ? task.tickets.map((ticket) => String(ticket)).filter((ticket) => TICKETS.includes(ticket))
           : [],
+        officeLinks: normalizeOfficeLinks(task.officeLinks),
         downtimeType: task.downtimeType === "TOTAL" ? "TOTAL" : "BACKEND",
         notes: String(task.notes || "").trim(),
         createdAt:
@@ -528,6 +631,16 @@ function normalizeTechnicians(value) {
   if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
   if (typeof value === "string") return value.split(",").map((item) => item.trim()).filter(Boolean);
   return [];
+}
+
+function normalizeOfficeLinks(value) {
+  if (!value || typeof value !== "object") return {};
+  const normalized = {};
+  TICKETS.forEach((ticket) => {
+    const raw = value[ticket];
+    if (typeof raw === "string" && raw.trim()) normalized[ticket] = raw.trim();
+  });
+  return normalized;
 }
 
 function parseISODate(dateString) {

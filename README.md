@@ -6,6 +6,8 @@ Web app to schedule software maintenance tasks with:
 - technicians management and assignment to tasks;
 - third-party office tickets (`SAAS`, `DSO`, `DEV`);
 - downtime type (`Backend only` or `Total`);
+- task templates (including `Oracle DB SAAS`);
+- Jira support links per selected third-party office ticket;
 - task extraction filters (`from/to`, `day type`, and `quarter`).
 
 ## Run locally

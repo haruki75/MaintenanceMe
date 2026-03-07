@@ -276,8 +276,37 @@ fieldset label {
   align-items: flex-end;
 }
 
+.inline-field {
+  display: flex;
+  gap: 0.55rem;
+}
+
+.inline-field > *:first-child {
+  flex: 1;
+}
+
 .inline-form label {
   flex: 1;
+}
+
+.ticket-links-grid {
+  display: grid;
+  gap: 0.7rem;
+}
+
+[data-ticket-link-row].hidden {
+  display: none;
+}
+
+.support-links {
+  margin: 0.25rem 0 0;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.support-links a {
+  color: var(--accent);
 }
 
 .technician-list {

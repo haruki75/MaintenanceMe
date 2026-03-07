@@ -35,6 +35,17 @@
         <h2>New task</h2>
         <form id="taskForm">
           <label>
+            Template
+            <div class="inline-field">
+              <select id="taskTemplateSelect" name="template">
+                <option value="">No template</option>
+                <option value="ORACLE_DB_SAAS">Oracle DB SAAS</option>
+              </select>
+              <button id="applyTemplateBtn" type="button">Apply template</button>
+            </div>
+          </label>
+
+          <label>
             Task title
             <input name="title" type="text" required maxlength="120" />
           </label>
@@ -56,6 +67,36 @@
             <label><input name="tickets" type="checkbox" value="DSO" /> DSO</label>
             <label><input name="tickets" type="checkbox" value="DEV" /> DEV</label>
           </fieldset>
+
+          <div class="ticket-links-grid">
+            <label data-ticket-link-row="SAAS">
+              SAAS support request link (Jira)
+              <input
+                id="ticketLinkSAAS"
+                name="ticketLinkSAAS"
+                type="url"
+                placeholder="https://yourcompany.atlassian.net/browse/ABC-123"
+              />
+            </label>
+            <label data-ticket-link-row="DSO">
+              DSO support request link (Jira)
+              <input
+                id="ticketLinkDSO"
+                name="ticketLinkDSO"
+                type="url"
+                placeholder="https://yourcompany.atlassian.net/browse/ABC-456"
+              />
+            </label>
+            <label data-ticket-link-row="DEV">
+              DEV support request link (Jira)
+              <input
+                id="ticketLinkDEV"
+                name="ticketLinkDEV"
+                type="url"
+                placeholder="https://yourcompany.atlassian.net/browse/ABC-789"
+              />
+            </label>
+          </div>
 
           <label>
             Downtime type

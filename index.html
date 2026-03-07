@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MaintenanceMe</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>MaintenanceMe</h1>
+        <p>Software maintenance scheduler with resources and tickets</p>
+      </div>
+      <button id="todayBtn" type="button">Go to today</button>
+    </header>
+
+    <main class="layout">
+      <section class="panel calendar-panel">
+        <div class="calendar-head">
+          <button id="prevMonthBtn" type="button" aria-label="Previous month">&lt;</button>
+          <h2 id="monthLabel"></h2>
+          <button id="nextMonthBtn" type="button" aria-label="Next month">&gt;</button>
+        </div>
+        <div class="legend">
+          <span class="badge weekday">Weekday</span>
+          <span class="badge weekend">Weekend</span>
+          <span class="badge holiday">Holiday</span>
+          <span class="badge selected">Selected</span>
+        </div>
+        <div id="calendarGrid" class="calendar-grid"></div>
+      </section>
+
+      <section class="panel form-panel">
+        <h2>New task</h2>
+        <form id="taskForm">
+          <label>
+            Task title
+            <input name="title" type="text" required maxlength="120" />
+          </label>
+
+          <label>
+            Date
+            <input id="taskDateInput" name="date" type="date" required />
+          </label>
+
+          <label>
+            Technicians
+            <select id="taskTechniciansSelect" name="technicians" multiple required></select>
+          </label>
+          <p class="field-hint">Use Ctrl/Cmd + click to select multiple technicians.</p>
+
+          <fieldset>
+            <legend>Third-party office tickets</legend>
+            <label><input name="tickets" type="checkbox" value="SAAS" /> SAAS</label>
+            <label><input name="tickets" type="checkbox" value="DSO" /> DSO</label>
+            <label><input name="tickets" type="checkbox" value="DEV" /> DEV</label>
+          </fieldset>
+
+          <label>
+            Downtime type
+            <select name="downtimeType" required>
+              <option value="BACKEND">Backend only</option>
+              <option value="TOTAL">Total</option>
+            </select>
+          </label>
+
+          <label>
+            Notes
+            <textarea name="notes" rows="3" maxlength="500"></textarea>
+          </label>
+
+          <button type="submit">Add task</button>
+        </form>
+      </section>
+
+      <section class="panel technicians-panel">
+        <h2>Technicians</h2>
+        <form id="technicianForm" class="inline-form">
+          <label>
+            Add technician
+            <input
+              id="technicianNameInput"
+              name="technicianName"
+              type="text"
+              placeholder="Jane Doe"
+              maxlength="80"
+              required
+            />
+          </label>
+          <button type="submit">Add technician</button>
+        </form>
+        <ul id="technicianList" class="technician-list"></ul>
+      </section>
+
+      <section class="panel tasks-panel">
+        <h2 id="tasksTitle"></h2>
+        <ul id="taskList" class="task-list"></ul>
+      </section>
+    </main>
+
+    <template id="taskItemTemplate">
+      <li class="task-item">
+        <div class="task-main">
+          <h3 class="task-title"></h3>
+          <p class="task-meta"></p>
+          <p class="task-notes"></p>
+        </div>
+        <button class="danger delete-btn" type="button">Delete</button>
+      </li>
+    </template>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

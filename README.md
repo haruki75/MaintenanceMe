@@ -31,5 +31,6 @@ then open `http://localhost:8080`.
 ## MVP notes
 
 - Data is stored in browser `localStorage`.
+- Saved data is tied to the same browser/profile and site origin (for example `localhost` and GitHub Pages do not share data).
 - Movable holidays included: Easter and Easter Monday.
 - Tasks can still be scheduled on holidays and weekends.

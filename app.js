@@ -1,12 +1,14 @@
+const APP_STATE_STORAGE_KEY = "maintenance-me-state-v1";
 const TASKS_STORAGE_KEY = "maintenance-me-tasks-v1";
 const TECHNICIANS_STORAGE_KEY = "maintenance-me-technicians-v1";
 const TICKETS = ["SAAS", "DSO", "DEV"];
+const loadedState = loadAppState();
 
 const state = {
   currentMonthDate: new Date(),
   selectedDate: toISODate(new Date()),
-  tasks: loadTasks(),
-  technicians: loadTechnicians(),
+  tasks: loadedState.tasks,
+  technicians: loadedState.technicians,
 };
 
 const monthLabel = document.getElementById("monthLabel");
@@ -294,41 +296,92 @@ function getTasksForDate(dateISO) {
 }
 
 function persistTasks() {
-  localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(state.tasks));
+  persistAppState();
 }
 
 function persistTechnicians() {
-  localStorage.setItem(TECHNICIANS_STORAGE_KEY, JSON.stringify(state.technicians));
+  persistAppState();
 }
 
-function loadTasks() {
+function persistAppState() {
   try {
-    const raw = localStorage.getItem(TASKS_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
+    localStorage.setItem(
+      APP_STATE_STORAGE_KEY,
+      JSON.stringify({
+        tasks: state.tasks,
+        technicians: state.technicians,
+      })
+    );
+    // Keep legacy keys in sync for backwards compatibility.
+    localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(state.tasks));
+    localStorage.setItem(TECHNICIANS_STORAGE_KEY, JSON.stringify(state.technicians));
+  } catch {
+    // Ignore storage errors (private mode/quota); app still works in-memory.
+  }
+}
 
-    return parsed
-      .filter((task) => typeof task.id === "string" && typeof task.date === "string")
-      .map((task) => ({
-        ...task,
+function loadAppState() {
+  try {
+    const rawState = localStorage.getItem(APP_STATE_STORAGE_KEY);
+    if (rawState) {
+      const parsedState = JSON.parse(rawState);
+      if (parsedState && typeof parsedState === "object") {
+        return {
+          tasks: normalizeTasks(parsedState.tasks),
+          technicians: normalizeTechnicianList(parsedState.technicians),
+        };
+      }
+    }
+  } catch {
+    // Fallback to legacy keys below.
+  }
+
+  try {
+    const rawLegacyTasks = localStorage.getItem(TASKS_STORAGE_KEY);
+    const rawLegacyTechnicians = localStorage.getItem(TECHNICIANS_STORAGE_KEY);
+    const legacyTasks = rawLegacyTasks ? normalizeTasks(JSON.parse(rawLegacyTasks)) : [];
+    const legacyTechnicians = rawLegacyTechnicians
+      ? normalizeTechnicianList(JSON.parse(rawLegacyTechnicians))
+      : [];
+    return { tasks: legacyTasks, technicians: legacyTechnicians };
+  } catch {
+    return { tasks: [], technicians: [] };
+  }
+}
+
+function normalizeTasks(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((task) => task && typeof task === "object")
+    .map((task) => {
+      const normalized = {
+        id: typeof task.id === "string" && task.id ? task.id : crypto.randomUUID(),
+        title: String(task.title || "").trim(),
+        date: typeof task.date === "string" ? task.date : "",
         technicians: normalizeTechnicians(task.technicians),
-      }));
-  } catch {
-    return [];
-  }
+        tickets: Array.isArray(task.tickets)
+          ? task.tickets.map((ticket) => String(ticket)).filter((ticket) => TICKETS.includes(ticket))
+          : [],
+        downtimeType: task.downtimeType === "TOTAL" ? "TOTAL" : "BACKEND",
+        notes: String(task.notes || "").trim(),
+        createdAt:
+          typeof task.createdAt === "string" && task.createdAt
+            ? task.createdAt
+            : new Date().toISOString(),
+      };
+      return normalized;
+    })
+    .filter((task) => task.date);
 }
 
-function loadTechnicians() {
-  try {
-    const raw = localStorage.getItem(TECHNICIANS_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((name) => typeof name === "string" && name.trim()).map((name) => name.trim());
-  } catch {
-    return [];
-  }
+function normalizeTechnicianList(value) {
+  if (!Array.isArray(value)) return [];
+  const unique = new Set(
+    value
+      .filter((name) => typeof name === "string" && name.trim())
+      .map((name) => name.trim())
+  );
+  return Array.from(unique).sort((a, b) => a.localeCompare(b));
 }
 
 function normalizeTechnicians(value) {
@@ -403,4 +456,5 @@ function calculateEaster(year) {
   return new Date(year, month - 1, day);
 }
 
+persistAppState();
 renderAll();

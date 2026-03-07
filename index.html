@@ -148,61 +148,132 @@
       </section>
 
       <section class="panel search-panel">
-        <h2>Task Search & Extract</h2>
-        <form id="searchForm">
-          <div class="search-grid">
-            <label>
-              From
-              <input id="filterFromDate" name="fromDate" type="date" />
-            </label>
-            <label>
-              To
-              <input id="filterToDate" name="toDate" type="date" />
-            </label>
-            <label>
-              Day type
-              <select id="filterDayType" name="dayType">
-                <option value="ALL">All</option>
-                <option value="WEEKDAY">Weekday</option>
-                <option value="WEEKEND">Weekend</option>
-                <option value="HOLIDAY">Holiday</option>
-              </select>
-            </label>
-            <label>
-              Quarter
-              <select id="filterQuarter" name="quarter">
-                <option value="ALL">All</option>
-                <option value="Q1">Q1 (Jan-Mar)</option>
-                <option value="Q2">Q2 (Apr-Jun)</option>
-                <option value="Q3">Q3 (Jul-Sep)</option>
-                <option value="Q4">Q4 (Oct-Dec)</option>
-              </select>
-            </label>
-            <label>
-              Year
-              <input id="filterYear" name="year" type="number" min="2000" max="2100" step="1" />
-            </label>
-          </div>
-          <div class="search-actions">
-            <button id="applyQuarterBtn" type="button">Apply quarter to dates</button>
-            <button type="submit">Extract list</button>
-            <button id="resetFiltersBtn" type="button">Reset filters</button>
-          </div>
-        </form>
-        <h3 id="searchResultsTitle"></h3>
-        <ul id="searchResultsList" class="task-list"></ul>
-      </section>
-
-      <section class="panel tasks-panel">
-        <h2 id="tasksTitle"></h2>
-        <ul id="taskList" class="task-list"></ul>
+        <details id="searchDetails">
+          <summary>Task Search & Extract</summary>
+          <form id="searchForm">
+            <div class="search-grid">
+              <label>
+                From
+                <input id="filterFromDate" name="fromDate" type="date" />
+              </label>
+              <label>
+                To
+                <input id="filterToDate" name="toDate" type="date" />
+              </label>
+              <label>
+                Day type
+                <select id="filterDayType" name="dayType">
+                  <option value="ALL">All</option>
+                  <option value="WEEKDAY">Weekday</option>
+                  <option value="WEEKEND">Weekend</option>
+                  <option value="HOLIDAY">Holiday</option>
+                </select>
+              </label>
+              <label>
+                Quarter
+                <select id="filterQuarter" name="quarter">
+                  <option value="ALL">All</option>
+                  <option value="Q1">Q1 (Jan-Mar)</option>
+                  <option value="Q2">Q2 (Apr-Jun)</option>
+                  <option value="Q3">Q3 (Jul-Sep)</option>
+                  <option value="Q4">Q4 (Oct-Dec)</option>
+                </select>
+              </label>
+              <label>
+                Year
+                <input id="filterYear" name="year" type="number" min="2000" max="2100" step="1" />
+              </label>
+            </div>
+            <div class="search-actions">
+              <button id="applyQuarterBtn" type="button">Apply quarter to dates</button>
+              <button type="submit">Extract list</button>
+              <button id="resetFiltersBtn" type="button">Reset filters</button>
+            </div>
+          </form>
+          <h3 id="searchResultsTitle"></h3>
+          <ul id="searchResultsList" class="task-list"></ul>
+        </details>
       </section>
     </main>
+
+    <div id="dayPanelBackdrop" class="day-panel-backdrop hidden"></div>
+    <section id="dayPanel" class="day-panel hidden" aria-label="Tasks of selected day">
+      <div class="day-panel-head">
+        <h2 id="tasksTitle"></h2>
+        <button id="closeDayPanelBtn" type="button" class="secondary">Close</button>
+      </div>
+      <ul id="taskList" class="task-list"></ul>
+    </section>
+
+    <div id="quickEditBackdrop" class="day-panel-backdrop hidden"></div>
+    <section id="quickEditModal" class="quick-edit-modal hidden" aria-label="Quick edit task">
+      <div class="day-panel-head">
+        <h2>Quick Edit Task</h2>
+        <button id="closeQuickEditBtn" type="button" class="secondary">Close</button>
+      </div>
+      <form id="quickEditForm">
+        <input id="quickEditTaskId" name="taskId" type="hidden" />
+        <label>
+          Task title
+          <input id="quickEditTitle" name="title" type="text" required maxlength="120" />
+        </label>
+        <div class="date-range-grid">
+          <label>
+            From
+            <input id="quickEditStartDate" name="startDate" type="date" required />
+          </label>
+          <label>
+            To
+            <input id="quickEditEndDate" name="endDate" type="date" required />
+          </label>
+        </div>
+        <label>
+          Technicians
+          <select id="quickEditTechnicians" name="technicians" multiple></select>
+        </label>
+        <fieldset>
+          <legend>Third-party office tickets</legend>
+          <label><input name="tickets" type="checkbox" value="SAAS" /> SAAS</label>
+          <label><input name="tickets" type="checkbox" value="DSO" /> DSO</label>
+          <label><input name="tickets" type="checkbox" value="DEV" /> DEV</label>
+        </fieldset>
+        <div class="ticket-links-grid">
+          <label data-quick-ticket-link-row="SAAS">
+            SAAS support request link (Jira)
+            <input id="quickTicketLinkSAAS" name="ticketLinkSAAS" type="url" />
+          </label>
+          <label data-quick-ticket-link-row="DSO">
+            DSO support request link (Jira)
+            <input id="quickTicketLinkDSO" name="ticketLinkDSO" type="url" />
+          </label>
+          <label data-quick-ticket-link-row="DEV">
+            DEV support request link (Jira)
+            <input id="quickTicketLinkDEV" name="ticketLinkDEV" type="url" />
+          </label>
+        </div>
+        <label>
+          Downtime type
+          <select id="quickEditDowntimeType" name="downtimeType" required>
+            <option value="BACKEND">Backend only</option>
+            <option value="TOTAL">Total</option>
+          </select>
+        </label>
+        <label>
+          Notes
+          <textarea id="quickEditNotes" name="notes" rows="3" maxlength="500"></textarea>
+        </label>
+        <div class="form-actions">
+          <button type="submit">Save changes</button>
+          <button id="cancelQuickEditBtn" type="button" class="secondary">Cancel</button>
+        </div>
+      </form>
+    </section>
 
     <template id="taskItemTemplate">
       <li class="task-item">
         <div class="task-main">
           <h3 class="task-title"></h3>
+          <p class="task-status"></p>
           <p class="task-meta"></p>
           <p class="task-alert"></p>
           <p class="task-notes"></p>

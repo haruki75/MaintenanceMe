@@ -14,6 +14,11 @@ const OFFICE_LINK_INPUT_IDS = {
   DSO: "ticketLinkDSO",
   DEV: "ticketLinkDEV",
 };
+const QUICK_OFFICE_LINK_INPUT_IDS = {
+  SAAS: "quickTicketLinkSAAS",
+  DSO: "quickTicketLinkDSO",
+  DEV: "quickTicketLinkDEV",
+};
 const loadedState = loadAppState();
 
 const state = {
@@ -22,6 +27,7 @@ const state = {
   tasks: loadedState.tasks,
   technicians: loadedState.technicians,
   editingTaskId: null,
+  dayPanelOpen: false,
   search: {
     fromDate: "",
     toDate: "",
@@ -45,6 +51,22 @@ const cancelEditBtn = document.getElementById("cancelEditBtn");
 const tasksTitle = document.getElementById("tasksTitle");
 const taskList = document.getElementById("taskList");
 const taskItemTemplate = document.getElementById("taskItemTemplate");
+const dayPanel = document.getElementById("dayPanel");
+const dayPanelBackdrop = document.getElementById("dayPanelBackdrop");
+const closeDayPanelBtn = document.getElementById("closeDayPanelBtn");
+const quickEditModal = document.getElementById("quickEditModal");
+const quickEditBackdrop = document.getElementById("quickEditBackdrop");
+const closeQuickEditBtn = document.getElementById("closeQuickEditBtn");
+const cancelQuickEditBtn = document.getElementById("cancelQuickEditBtn");
+const quickEditForm = document.getElementById("quickEditForm");
+const quickEditTaskId = document.getElementById("quickEditTaskId");
+const quickEditTitle = document.getElementById("quickEditTitle");
+const quickEditStartDate = document.getElementById("quickEditStartDate");
+const quickEditEndDate = document.getElementById("quickEditEndDate");
+const quickEditTechnicians = document.getElementById("quickEditTechnicians");
+const quickEditDowntimeType = document.getElementById("quickEditDowntimeType");
+const quickEditNotes = document.getElementById("quickEditNotes");
+const quickTicketCheckboxes = Array.from(quickEditForm.querySelectorAll('input[name="tickets"]'));
 const technicianForm = document.getElementById("technicianForm");
 const technicianNameInput = document.getElementById("technicianNameInput");
 const technicianList = document.getElementById("technicianList");
@@ -82,6 +104,7 @@ document.getElementById("todayBtn").addEventListener("click", () => {
   const today = new Date();
   state.currentMonthDate = new Date(today.getFullYear(), today.getMonth(), 1);
   state.selectedDate = toISODate(today);
+  state.dayPanelOpen = true;
   renderAll();
 });
 
@@ -101,6 +124,41 @@ taskTicketCheckboxes.forEach((checkbox) => {
 
 cancelEditBtn.addEventListener("click", () => {
   resetTaskFormToCreateMode();
+});
+
+closeDayPanelBtn.addEventListener("click", () => {
+  closeDayPanel();
+});
+
+dayPanelBackdrop.addEventListener("click", () => {
+  closeDayPanel();
+});
+
+closeQuickEditBtn.addEventListener("click", () => {
+  closeQuickEdit();
+});
+
+cancelQuickEditBtn.addEventListener("click", () => {
+  closeQuickEdit();
+});
+
+quickEditBackdrop.addEventListener("click", () => {
+  closeQuickEdit();
+});
+
+quickTicketCheckboxes.forEach((checkbox) => {
+  checkbox.addEventListener("change", () => {
+    applyQuickTicketLinkVisibility();
+  });
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && state.dayPanelOpen) {
+    closeDayPanel();
+  }
+  if (event.key === "Escape" && !quickEditModal.classList.contains("hidden")) {
+    closeQuickEdit();
+  }
 });
 
 searchForm.addEventListener("submit", (event) => {
@@ -235,6 +293,7 @@ taskForm.addEventListener("submit", (event) => {
 
   state.selectedDate = taskPayload.startDate;
   state.currentMonthDate = new Date(`${taskPayload.startDate}T00:00:00`);
+  state.dayPanelOpen = true;
   resetTaskFormToCreateMode();
   renderAll();
 });
@@ -248,7 +307,7 @@ taskList.addEventListener("click", (event) => {
     if (!id) return;
     const task = state.tasks.find((item) => item.id === id);
     if (!task) return;
-    enterEditMode(task);
+    openQuickEdit(task);
     return;
   }
 
@@ -269,12 +328,58 @@ searchResultsList.addEventListener("click", (event) => {
   if (!id) return;
   const task = state.tasks.find((item) => item.id === id);
   if (!task) return;
-  enterEditMode(task);
+  openQuickEdit(task);
+});
+
+quickEditForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const id = quickEditTaskId.value;
+  if (!id) return;
+  const index = state.tasks.findIndex((task) => task.id === id);
+  if (index === -1) return;
+
+  const form = new FormData(quickEditForm);
+  const startDate = String(form.get("startDate") || "");
+  const endDate = String(form.get("endDate") || "");
+  if (!startDate || !endDate) return;
+  if (endDate < startDate) {
+    alert("The end date must be on or after the start date.");
+    return;
+  }
+
+  const tickets = form.getAll("tickets").filter((value) => TICKETS.includes(value));
+  const officeLinks = collectOfficeLinks(form, tickets, QUICK_OFFICE_LINK_INPUT_IDS);
+  const technicians = form
+    .getAll("technicians")
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+
+  state.tasks[index] = {
+    ...state.tasks[index],
+    title: String(form.get("title") || "").trim(),
+    date: startDate,
+    startDate,
+    endDate,
+    technicians,
+    tickets,
+    officeLinks,
+    downtimeType: String(form.get("downtimeType") || "BACKEND"),
+    notes: String(form.get("notes") || "").trim(),
+    updatedAt: new Date().toISOString(),
+  };
+  persistTasks();
+  state.selectedDate = startDate;
+  state.currentMonthDate = new Date(`${startDate}T00:00:00`);
+  closeQuickEdit();
+  renderAll();
 });
 
 function renderAll() {
   renderCalendar();
-  renderTasksForSelectedDate();
+  if (state.dayPanelOpen) {
+    renderTasksForSelectedDate();
+  }
+  renderDayPanelVisibility();
   renderTechnicians();
   renderTaskFormMode();
   applyTicketLinkVisibility();
@@ -335,15 +440,24 @@ function renderCalendar() {
     dayNumber.className = "day-number";
     dayNumber.textContent = String(day);
 
-    const eventsCount = getTasksForDate(cell.dataset.date).length;
+    const dayTasks = getTasksForDate(cell.dataset.date);
+    const eventsCount = dayTasks.length;
+    const incompleteCount = dayTasks.filter((task) => getTaskCompletionIssues(task).length > 0).length;
     const badge = document.createElement("span");
     badge.className = "events-count";
     if (eventsCount > 0) {
       badge.textContent = `${eventsCount} ${eventsCount === 1 ? "task" : "tasks"}`;
     }
+    const warningBadge = document.createElement("span");
+    warningBadge.className = "warning-count";
+    if (incompleteCount > 0) {
+      warningBadge.textContent = `${incompleteCount} incomplete`;
+      cell.classList.add("has-warning");
+    }
 
     cell.appendChild(dayNumber);
     cell.appendChild(badge);
+    cell.appendChild(warningBadge);
 
     if (muted) cell.classList.add("muted");
     if (isWeekend(date)) cell.classList.add("weekend");
@@ -359,6 +473,7 @@ function renderCalendar() {
           1
         );
       }
+      openDayPanel(state.selectedDate);
       renderAll();
     });
 
@@ -388,6 +503,7 @@ function renderTasksForSelectedDate() {
       const node = taskItemTemplate.content.cloneNode(true);
       const taskItem = node.querySelector(".task-item");
       const title = node.querySelector(".task-title");
+      const statusNode = node.querySelector(".task-status");
       const meta = node.querySelector(".task-meta");
       const alertNode = node.querySelector(".task-alert");
       const notes = node.querySelector(".task-notes");
@@ -395,24 +511,42 @@ function renderTasksForSelectedDate() {
       const editBtn = node.querySelector(".edit-btn");
       const taskMain = node.querySelector(".task-main");
       const issues = getTaskCompletionIssues(task);
+      const isIncomplete = issues.length > 0;
 
       title.textContent = task.title;
+      statusNode.textContent = isIncomplete ? "INCOMPLETE" : "COMPLETE";
+      statusNode.className = `task-status ${isIncomplete ? "incomplete" : "complete"}`;
       meta.textContent = [
         `Range: ${getTaskDateRangeLabel(task)}`,
         `Technicians: ${task.technicians.length ? task.technicians.join(", ") : "None"}`,
         `Tickets: ${task.tickets.length ? task.tickets.join(", ") : "None"}`,
         `Downtime: ${task.downtimeType === "TOTAL" ? "Total" : "Backend only"}`,
       ].join(" | ");
-      alertNode.textContent = issues.length ? `Attention: ${issues.join(" | ")}` : "";
+      alertNode.textContent = isIncomplete ? `Attention: ${issues.join(" | ")}` : "";
       notes.textContent = task.notes ? `Notes: ${task.notes}` : "";
       deleteBtn.dataset.id = task.id;
       editBtn.dataset.id = task.id;
-      if (issues.length) taskItem.classList.add("warning");
+      if (isIncomplete) taskItem.classList.add("warning");
       const linksNode = buildSupportLinksNode(task.officeLinks);
       if (linksNode) taskMain.appendChild(linksNode);
 
       taskList.appendChild(node);
     });
+}
+
+function openDayPanel(dateISO) {
+  state.selectedDate = dateISO;
+  state.dayPanelOpen = true;
+}
+
+function closeDayPanel() {
+  state.dayPanelOpen = false;
+  renderAll();
+}
+
+function renderDayPanelVisibility() {
+  dayPanel.classList.toggle("hidden", !state.dayPanelOpen);
+  dayPanelBackdrop.classList.toggle("hidden", !state.dayPanelOpen);
 }
 
 function renderTechnicians() {
@@ -493,6 +627,10 @@ function renderSearchResults() {
     const title = document.createElement("h3");
     title.className = "task-title";
     title.textContent = task.title;
+    const statusNode = document.createElement("p");
+    const isIncomplete = issues.length > 0;
+    statusNode.className = `task-status ${isIncomplete ? "incomplete" : "complete"}`;
+    statusNode.textContent = isIncomplete ? "INCOMPLETE" : "COMPLETE";
 
     const meta = document.createElement("p");
     meta.className = "task-meta";
@@ -513,6 +651,7 @@ function renderSearchResults() {
     notes.textContent = task.notes ? `Notes: ${task.notes}` : "";
 
     main.appendChild(title);
+    main.appendChild(statusNode);
     main.appendChild(meta);
     if (issues.length) main.appendChild(alertNode);
     main.appendChild(notes);
@@ -589,10 +728,24 @@ function applyTicketLinkVisibility() {
   });
 }
 
-function collectOfficeLinks(form, tickets) {
+function applyQuickTicketLinkVisibility() {
+  const selectedTickets = new Set(
+    quickTicketCheckboxes.filter((checkbox) => checkbox.checked).map((checkbox) => checkbox.value)
+  );
+  TICKETS.forEach((ticket) => {
+    const row = document.querySelector(`[data-quick-ticket-link-row="${ticket}"]`);
+    const input = document.getElementById(QUICK_OFFICE_LINK_INPUT_IDS[ticket]);
+    if (!row || !input) return;
+    const visible = selectedTickets.has(ticket);
+    row.classList.toggle("hidden", !visible);
+    if (!visible) input.value = "";
+  });
+}
+
+function collectOfficeLinks(form, tickets, map = OFFICE_LINK_INPUT_IDS) {
   const officeLinks = {};
   tickets.forEach((ticket) => {
-    const inputName = OFFICE_LINK_INPUT_IDS[ticket];
+    const inputName = map[ticket];
     const value = String(form.get(inputName) || "").trim();
     if (value) officeLinks[ticket] = value;
   });
@@ -619,6 +772,57 @@ function buildSupportLinksNode(officeLinks) {
     container.appendChild(link);
   });
   return container;
+}
+
+function openQuickEdit(task) {
+  quickEditTaskId.value = task.id;
+  quickEditTitle.value = task.title || "";
+  quickEditStartDate.value = getTaskStartDate(task);
+  quickEditEndDate.value = getTaskEndDate(task);
+  quickEditDowntimeType.value = task.downtimeType || "BACKEND";
+  quickEditNotes.value = task.notes || "";
+
+  renderQuickEditTechnicians(task.technicians || []);
+
+  quickTicketCheckboxes.forEach((checkbox) => {
+    checkbox.checked = task.tickets.includes(checkbox.value);
+  });
+  TICKETS.forEach((ticket) => {
+    const input = document.getElementById(QUICK_OFFICE_LINK_INPUT_IDS[ticket]);
+    if (!input) return;
+    input.value = task.officeLinks?.[ticket] || "";
+  });
+  applyQuickTicketLinkVisibility();
+
+  quickEditModal.classList.remove("hidden");
+  quickEditBackdrop.classList.remove("hidden");
+}
+
+function closeQuickEdit() {
+  quickEditForm.reset();
+  quickEditModal.classList.add("hidden");
+  quickEditBackdrop.classList.add("hidden");
+}
+
+function renderQuickEditTechnicians(selected) {
+  const selectedSet = new Set(selected);
+  quickEditTechnicians.innerHTML = "";
+  if (state.technicians.length === 0) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "No technicians available yet";
+    option.disabled = true;
+    option.selected = true;
+    quickEditTechnicians.appendChild(option);
+    return;
+  }
+  state.technicians.forEach((name) => {
+    const option = document.createElement("option");
+    option.value = name;
+    option.textContent = name;
+    option.selected = selectedSet.has(name);
+    quickEditTechnicians.appendChild(option);
+  });
 }
 
 function enterEditMode(task) {
@@ -676,6 +880,10 @@ function getTaskCompletionIssues(task) {
     const missing = expectedTickets.filter((ticket) => !task.tickets.includes(ticket));
     if (missing.length) issues.push(`Missing expected tickets: ${missing.join(", ")}`);
   }
+  const missingLinks = getMissingJiraLinks(task);
+  if (missingLinks.length) {
+    issues.push(`Missing Jira links: ${missingLinks.join(", ")}`);
+  }
   return issues;
 }
 
@@ -687,6 +895,11 @@ function getExpectedTickets(task) {
     return TASK_TEMPLATES[task.templateKey].tickets.filter((ticket) => TICKETS.includes(ticket));
   }
   return [];
+}
+
+function getMissingJiraLinks(task) {
+  const links = normalizeOfficeLinks(task.officeLinks);
+  return (task.tickets || []).filter((ticket) => !links[ticket]);
 }
 
 function getTasksForDate(dateISO) {

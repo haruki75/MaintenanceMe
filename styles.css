@@ -87,6 +87,10 @@ button.secondary {
   margin: 0 auto;
   display: grid;
   grid-template-columns: 1.35fr 1fr;
+  grid-template-areas:
+    "calendar form"
+    "calendar technicians"
+    "search search";
   gap: 1rem;
 }
 
@@ -97,13 +101,10 @@ button.secondary {
   padding: 1rem;
 }
 
-.tasks-panel {
-  grid-column: 1 / -1;
-}
-
-.search-panel {
-  grid-column: 1 / -1;
-}
+.calendar-panel { grid-area: calendar; }
+.form-panel { grid-area: form; }
+.technicians-panel { grid-area: technicians; }
+.search-panel { grid-area: search; }
 
 .calendar-head {
   display: flex;
@@ -143,6 +144,11 @@ button.secondary {
   background: var(--selected);
 }
 
+.calendar-cell.has-warning {
+  border-color: #d6a300;
+  box-shadow: inset 0 0 0 1px #f3cf4a;
+}
+
 .calendar-cell .day-number {
   font-weight: 700;
 }
@@ -151,6 +157,12 @@ button.secondary {
   margin-top: auto;
   color: var(--ink-muted);
   font-size: 0.85rem;
+}
+
+.calendar-cell .warning-count {
+  color: #9a6f00;
+  font-weight: 700;
+  font-size: 0.78rem;
 }
 
 .calendar-cell.muted {
@@ -237,6 +249,16 @@ select[multiple] {
   margin: 1rem 0 0.6rem;
 }
 
+#searchDetails summary {
+  cursor: pointer;
+  font-weight: 700;
+  margin-bottom: 0.7rem;
+}
+
+#searchDetails[open] summary {
+  margin-bottom: 0.9rem;
+}
+
 fieldset {
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -285,6 +307,21 @@ fieldset label {
   margin: 0.15rem 0;
 }
 
+.task-status {
+  margin: 0.15rem 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.task-status.complete {
+  color: #1f7a3d;
+}
+
+.task-status.incomplete {
+  color: #9a6f00;
+}
+
 .task-alert {
   margin: 0.2rem 0;
   color: #9a6f00;
@@ -294,6 +331,52 @@ fieldset label {
 .task-actions {
   display: flex;
   gap: 0.5rem;
+}
+
+.day-panel-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(22, 29, 22, 0.35);
+  z-index: 15;
+}
+
+.day-panel {
+  position: fixed;
+  right: 1rem;
+  top: 1rem;
+  width: min(520px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1rem;
+  z-index: 20;
+  box-shadow: 0 12px 34px rgba(20, 34, 22, 0.2);
+}
+
+.quick-edit-modal {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(700px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1rem;
+  z-index: 30;
+  box-shadow: 0 16px 36px rgba(20, 34, 22, 0.26);
+}
+
+.day-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 0.8rem;
 }
 
 .inline-form {
@@ -381,10 +464,11 @@ fieldset label {
 @media (max-width: 860px) {
   .layout {
     grid-template-columns: 1fr;
-  }
-
-  .tasks-panel {
-    grid-column: auto;
+    grid-template-areas:
+      "calendar"
+      "form"
+      "technicians"
+      "search";
   }
 
   .inline-form {
@@ -398,5 +482,11 @@ fieldset label {
 
   .date-range-grid {
     grid-template-columns: 1fr;
+  }
+
+  .day-panel {
+    left: 1rem;
+    right: 1rem;
+    width: auto;
   }
 }

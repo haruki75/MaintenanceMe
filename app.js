@@ -9,6 +9,13 @@ const state = {
   selectedDate: toISODate(new Date()),
   tasks: loadedState.tasks,
   technicians: loadedState.technicians,
+  search: {
+    fromDate: "",
+    toDate: "",
+    dayType: "ALL",
+    quarter: "ALL",
+    year: String(new Date().getFullYear()),
+  },
 };
 
 const monthLabel = document.getElementById("monthLabel");
@@ -22,6 +29,16 @@ const taskItemTemplate = document.getElementById("taskItemTemplate");
 const technicianForm = document.getElementById("technicianForm");
 const technicianNameInput = document.getElementById("technicianNameInput");
 const technicianList = document.getElementById("technicianList");
+const searchForm = document.getElementById("searchForm");
+const filterFromDate = document.getElementById("filterFromDate");
+const filterToDate = document.getElementById("filterToDate");
+const filterDayType = document.getElementById("filterDayType");
+const filterQuarter = document.getElementById("filterQuarter");
+const filterYear = document.getElementById("filterYear");
+const applyQuarterBtn = document.getElementById("applyQuarterBtn");
+const resetFiltersBtn = document.getElementById("resetFiltersBtn");
+const searchResultsTitle = document.getElementById("searchResultsTitle");
+const searchResultsList = document.getElementById("searchResultsList");
 
 document.getElementById("prevMonthBtn").addEventListener("click", () => {
   state.currentMonthDate = new Date(
@@ -46,6 +63,49 @@ document.getElementById("todayBtn").addEventListener("click", () => {
   state.currentMonthDate = new Date(today.getFullYear(), today.getMonth(), 1);
   state.selectedDate = toISODate(today);
   renderAll();
+});
+
+searchForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  state.search = {
+    fromDate: filterFromDate.value || "",
+    toDate: filterToDate.value || "",
+    dayType: filterDayType.value || "ALL",
+    quarter: filterQuarter.value || "ALL",
+    year: normalizeFilterYear(filterYear.value),
+  };
+  renderSearchResults();
+});
+
+applyQuarterBtn.addEventListener("click", () => {
+  const quarter = filterQuarter.value;
+  const year = Number(normalizeFilterYear(filterYear.value));
+  if (quarter === "ALL") return;
+
+  const bounds = getQuarterBounds(year, quarter);
+  filterFromDate.value = bounds.fromDate;
+  filterToDate.value = bounds.toDate;
+  state.search.fromDate = bounds.fromDate;
+  state.search.toDate = bounds.toDate;
+  state.search.quarter = quarter;
+  state.search.year = String(year);
+  renderSearchResults();
+});
+
+resetFiltersBtn.addEventListener("click", () => {
+  filterFromDate.value = "";
+  filterToDate.value = "";
+  filterDayType.value = "ALL";
+  filterQuarter.value = "ALL";
+  filterYear.value = String(new Date().getFullYear());
+  state.search = {
+    fromDate: "",
+    toDate: "",
+    dayType: "ALL",
+    quarter: "ALL",
+    year: String(new Date().getFullYear()),
+  };
+  renderSearchResults();
 });
 
 technicianForm.addEventListener("submit", (event) => {
@@ -130,6 +190,8 @@ function renderAll() {
   renderCalendar();
   renderTasksForSelectedDate();
   renderTechnicians();
+  syncSearchInputsFromState();
+  renderSearchResults();
   taskDateInput.value = state.selectedDate;
 }
 
@@ -215,8 +277,7 @@ function renderCalendar() {
 
 function renderTasksForSelectedDate() {
   const date = parseISODate(state.selectedDate);
-  const isHoliday = isHolidayItaly(date);
-  const dayType = isHoliday ? "Holiday" : isWeekend(date) ? "Weekend" : "Weekday";
+  const dayType = getDayTypeLabel(date);
 
   tasksTitle.textContent = `${state.selectedDate} - ${dayType}`;
   const tasks = getTasksForDate(state.selectedDate);
@@ -289,6 +350,85 @@ function renderTechnicians() {
       technicianList.appendChild(listItem);
     });
   }
+}
+
+function renderSearchResults() {
+  const filteredTasks = state.tasks
+    .filter((task) => matchesSearchFilters(task, state.search))
+    .sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return a.createdAt.localeCompare(b.createdAt);
+    });
+
+  searchResultsList.innerHTML = "";
+  searchResultsTitle.textContent = `Results: ${filteredTasks.length} ${
+    filteredTasks.length === 1 ? "task" : "tasks"
+  }`;
+
+  if (filteredTasks.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "task-item";
+    empty.textContent = "No tasks match the selected criteria.";
+    searchResultsList.appendChild(empty);
+    return;
+  }
+
+  filteredTasks.forEach((task) => {
+    const item = document.createElement("li");
+    item.className = "task-item";
+
+    const main = document.createElement("div");
+    main.className = "task-main";
+
+    const title = document.createElement("h3");
+    title.className = "task-title";
+    title.textContent = `${task.title} (${task.date})`;
+
+    const meta = document.createElement("p");
+    meta.className = "task-meta";
+    meta.textContent = [
+      `Type: ${getDayTypeLabel(parseISODate(task.date))}`,
+      `Technicians: ${task.technicians.join(", ")}`,
+      `Tickets: ${task.tickets.length ? task.tickets.join(", ") : "None"}`,
+      `Downtime: ${task.downtimeType === "TOTAL" ? "Total" : "Backend only"}`,
+    ].join(" | ");
+
+    const notes = document.createElement("p");
+    notes.className = "task-notes";
+    notes.textContent = task.notes ? `Notes: ${task.notes}` : "";
+
+    main.appendChild(title);
+    main.appendChild(meta);
+    main.appendChild(notes);
+    item.appendChild(main);
+    searchResultsList.appendChild(item);
+  });
+}
+
+function syncSearchInputsFromState() {
+  filterFromDate.value = state.search.fromDate;
+  filterToDate.value = state.search.toDate;
+  filterDayType.value = state.search.dayType;
+  filterQuarter.value = state.search.quarter;
+  filterYear.value = state.search.year;
+}
+
+function matchesSearchFilters(task, filters) {
+  if (filters.fromDate && task.date < filters.fromDate) return false;
+  if (filters.toDate && task.date > filters.toDate) return false;
+
+  const taskDate = parseISODate(task.date);
+  if (filters.dayType !== "ALL") {
+    const taskDayType = getDayType(taskDate);
+    if (taskDayType !== filters.dayType) return false;
+  }
+
+  if (filters.quarter !== "ALL") {
+    const bounds = getQuarterBounds(Number(normalizeFilterYear(filters.year)), filters.quarter);
+    if (task.date < bounds.fromDate || task.date > bounds.toDate) return false;
+  }
+
+  return true;
 }
 
 function getTasksForDate(dateISO) {
@@ -404,6 +544,40 @@ function toISODate(date) {
 function isWeekend(date) {
   const day = date.getDay();
   return day === 0 || day === 6;
+}
+
+function getDayType(date) {
+  if (isHolidayItaly(date)) return "HOLIDAY";
+  if (isWeekend(date)) return "WEEKEND";
+  return "WEEKDAY";
+}
+
+function getDayTypeLabel(date) {
+  const dayType = getDayType(date);
+  if (dayType === "HOLIDAY") return "Holiday";
+  if (dayType === "WEEKEND") return "Weekend";
+  return "Weekday";
+}
+
+function normalizeFilterYear(value) {
+  const fallbackYear = String(new Date().getFullYear());
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 2000 || parsed > 2100) return fallbackYear;
+  return String(parsed);
+}
+
+function getQuarterBounds(year, quarter) {
+  const safeYear = Number.isInteger(year) ? year : new Date().getFullYear();
+  const ranges = {
+    Q1: { startMonth: 0, endMonth: 2 },
+    Q2: { startMonth: 3, endMonth: 5 },
+    Q3: { startMonth: 6, endMonth: 8 },
+    Q4: { startMonth: 9, endMonth: 11 },
+  };
+  const selected = ranges[quarter] || ranges.Q1;
+  const fromDate = toISODate(new Date(safeYear, selected.startMonth, 1));
+  const toDate = toISODate(new Date(safeYear, selected.endMonth + 1, 0));
+  return { fromDate, toDate };
 }
 
 function isHolidayItaly(date) {

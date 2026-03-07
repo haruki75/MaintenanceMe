@@ -93,6 +93,52 @@
         <ul id="technicianList" class="technician-list"></ul>
       </section>
 
+      <section class="panel search-panel">
+        <h2>Task Search & Extract</h2>
+        <form id="searchForm">
+          <div class="search-grid">
+            <label>
+              From
+              <input id="filterFromDate" name="fromDate" type="date" />
+            </label>
+            <label>
+              To
+              <input id="filterToDate" name="toDate" type="date" />
+            </label>
+            <label>
+              Day type
+              <select id="filterDayType" name="dayType">
+                <option value="ALL">All</option>
+                <option value="WEEKDAY">Weekday</option>
+                <option value="WEEKEND">Weekend</option>
+                <option value="HOLIDAY">Holiday</option>
+              </select>
+            </label>
+            <label>
+              Quarter
+              <select id="filterQuarter" name="quarter">
+                <option value="ALL">All</option>
+                <option value="Q1">Q1 (Jan-Mar)</option>
+                <option value="Q2">Q2 (Apr-Jun)</option>
+                <option value="Q3">Q3 (Jul-Sep)</option>
+                <option value="Q4">Q4 (Oct-Dec)</option>
+              </select>
+            </label>
+            <label>
+              Year
+              <input id="filterYear" name="year" type="number" min="2000" max="2100" step="1" />
+            </label>
+          </div>
+          <div class="search-actions">
+            <button id="applyQuarterBtn" type="button">Apply quarter to dates</button>
+            <button type="submit">Extract list</button>
+            <button id="resetFiltersBtn" type="button">Reset filters</button>
+          </div>
+        </form>
+        <h3 id="searchResultsTitle"></h3>
+        <ul id="searchResultsList" class="task-list"></ul>
+      </section>
+
       <section class="panel tasks-panel">
         <h2 id="tasksTitle"></h2>
         <ul id="taskList" class="task-list"></ul>

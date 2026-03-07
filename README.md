@@ -5,7 +5,8 @@ Web app to schedule software maintenance tasks with:
 - `weekday`, `weekend`, and `holiday` distinction (Italian national holidays);
 - technicians management and assignment to tasks;
 - third-party office tickets (`SAAS`, `DSO`, `DEV`);
-- downtime type (`Backend only` or `Total`).
+- downtime type (`Backend only` or `Total`);
+- task extraction filters (`from/to`, `day type`, and `quarter`).
 
 ## Run locally
 

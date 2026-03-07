@@ -97,6 +97,10 @@ button.danger {
   grid-column: 1 / -1;
 }
 
+.search-panel {
+  grid-column: 1 / -1;
+}
+
 .calendar-head {
   display: flex;
   align-items: center;
@@ -206,6 +210,23 @@ select[multiple] {
   font-size: 0.86rem;
 }
 
+.search-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.search-actions {
+  margin-top: 0.7rem;
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+#searchResultsTitle {
+  margin: 1rem 0 0.6rem;
+}
+
 fieldset {
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -289,5 +310,9 @@ fieldset label {
   .inline-form {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .search-grid {
+    grid-template-columns: 1fr;
   }
 }

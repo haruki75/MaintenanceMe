@@ -3,24 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MaintenanceMe</title>
+    <title>MaintenanceMe | Pro Scheduler</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <header class="topbar">
-      <div>
+      <div class="brand">
         <h1>MaintenanceMe</h1>
-        <p>Software maintenance scheduler with resources and tickets</p>
+        <p>Software maintenance & resource orchestrator</p>
       </div>
-      <button id="todayBtn" type="button">Go to today</button>
+      <button id="todayBtn" type="button" class="btn-today">Go to today</button>
     </header>
 
     <main class="layout">
       <section class="panel calendar-panel">
         <div class="calendar-head">
-          <button id="prevMonthBtn" type="button" aria-label="Previous month">&lt;</button>
+          <button id="prevMonthBtn" type="button" class="btn-nav">&larr;</button>
           <h2 id="monthLabel"></h2>
-          <button id="nextMonthBtn" type="button" aria-label="Next month">&gt;</button>
+          <button id="nextMonthBtn" type="button" class="btn-nav">&rarr;</button>
         </div>
         <div class="legend">
           <span class="badge weekday">Weekday</span>
@@ -32,82 +35,70 @@
       </section>
 
       <section class="panel form-panel">
-        <h2>New task</h2>
-        <p id="taskFormModeLabel" class="mode-label">Create mode</p>
+        <div class="panel-header">
+            <h2>New Task</h2>
+            <span id="taskFormModeLabel" class="badge-mode">Create mode</span>
+        </div>
         <form id="taskForm">
           <label>
-            Template
+            <span class="label-text">Template</span>
             <div class="inline-field">
               <select id="taskTemplateSelect" name="template">
-                <option value="">Select template (auto applies)</option>
+                <option value="">Select template...</option>
                 <option value="ORACLE_DB_SAAS">Oracle DB SAAS</option>
               </select>
-              <button id="applyTemplateBtn" type="button">Apply template</button>
+              <button id="applyTemplateBtn" type="button" class="btn-ghost">Apply</button>
             </div>
           </label>
-          <p class="field-hint">Select a template to auto-fill title, tickets and downtime.</p>
 
           <label>
-            Task title
-            <input name="title" type="text" required maxlength="120" />
+            <span class="label-text">Task Title</span>
+            <input name="title" type="text" required maxlength="120" placeholder="e.g. Database Patching" />
           </label>
 
           <div class="date-range-grid">
             <label>
-              From
+              <span class="label-text">From</span>
               <input id="taskStartDateInput" name="startDate" type="date" required />
             </label>
             <label>
-              To
+              <span class="label-text">To</span>
               <input id="taskEndDateInput" name="endDate" type="date" required />
             </label>
           </div>
 
           <label>
-            Technicians
-            <select id="taskTechniciansSelect" name="technicians" multiple></select>
+            <span class="label-text">Technicians</span>
+            <select id="taskTechniciansSelect" name="technicians" multiple class="multi-select"></select>
+            <span class="field-hint">Hold Cmd/Ctrl to select multiple</span>
           </label>
-          <p class="field-hint">Use Ctrl/Cmd + click to select multiple technicians.</p>
 
-          <fieldset>
-            <legend>Third-party office tickets</legend>
-            <label><input name="tickets" type="checkbox" value="SAAS" /> SAAS</label>
-            <label><input name="tickets" type="checkbox" value="DSO" /> DSO</label>
-            <label><input name="tickets" type="checkbox" value="DEV" /> DEV</label>
+          <fieldset class="ticket-fieldset">
+            <legend>Third-party Tickets</legend>
+            <div class="checkbox-group">
+                <label class="cb-container"><input name="tickets" type="checkbox" value="SAAS" /> SAAS</label>
+                <label class="cb-container"><input name="tickets" type="checkbox" value="DSO" /> DSO</label>
+                <label class="cb-container"><input name="tickets" type="checkbox" value="DEV" /> DEV</label>
+            </div>
           </fieldset>
 
           <div class="ticket-links-grid">
-            <label data-ticket-link-row="SAAS">
-              SAAS support request link (Jira)
-              <input
-                id="ticketLinkSAAS"
-                name="ticketLinkSAAS"
-                type="url"
-                placeholder="https://yourcompany.atlassian.net/browse/ABC-123"
-              />
+            <label data-ticket-link-row="SAAS" class="hidden">
+              <span class="label-text">SAAS Jira Link</span>
+              <input id="ticketLinkSAAS" name="ticketLinkSAAS" type="url" placeholder="https://..." />
             </label>
-            <label data-ticket-link-row="DSO">
-              DSO support request link (Jira)
-              <input
-                id="ticketLinkDSO"
-                name="ticketLinkDSO"
-                type="url"
-                placeholder="https://yourcompany.atlassian.net/browse/ABC-456"
-              />
+            <label data-ticket-link-row="DSO" class="hidden">
+              <span class="label-text">DSO Jira Link</span>
+              <input id="ticketLinkDSO" name="ticketLinkDSO" type="url" placeholder="https://..." />
             </label>
-            <label data-ticket-link-row="DEV">
-              DEV support request link (Jira)
-              <input
-                id="ticketLinkDEV"
-                name="ticketLinkDEV"
-                type="url"
-                placeholder="https://yourcompany.atlassian.net/browse/ABC-789"
-              />
+            <label data-ticket-link-row="DEV" class="hidden">
+              <span class="label-text">DEV Jira Link</span>
+              <input id="ticketLinkDEV" name="ticketLinkDEV" type="url" placeholder="https://..." />
             </label>
           </div>
 
           <label>
-            Downtime type
+            <span class="label-text">Downtime Type</span>
             <select name="downtimeType" required>
               <option value="BACKEND">Backend only</option>
               <option value="TOTAL">Total</option>
@@ -115,33 +106,23 @@
           </label>
 
           <label>
-            Notes
-            <textarea name="notes" rows="3" maxlength="500"></textarea>
+            <span class="label-text">Notes</span>
+            <textarea name="notes" rows="2" maxlength="500"></textarea>
           </label>
 
           <div class="form-actions">
-            <button id="taskSubmitBtn" type="submit">Add task</button>
-            <button id="cancelEditBtn" type="button" class="secondary hidden">Cancel edit</button>
+            <button id="taskSubmitBtn" type="submit" class="btn-primary">Add Task</button>
+            <button id="cancelEditBtn" type="button" class="btn-secondary hidden">Cancel</button>
           </div>
         </form>
       </section>
 
       <section class="panel technicians-panel">
         <details id="techniciansDetails">
-          <summary>Technicians</summary>
+          <summary>Manage Technicians</summary>
           <form id="technicianForm" class="inline-form">
-            <label>
-              Add technician
-              <input
-                id="technicianNameInput"
-                name="technicianName"
-                type="text"
-                placeholder="Jane Doe"
-                maxlength="80"
-                required
-              />
-            </label>
-            <button type="submit">Add technician</button>
+            <input id="technicianNameInput" name="technicianName" type="text" placeholder="Name" required />
+            <button type="submit" class="btn-add">+</button>
           </form>
           <ul id="technicianList" class="technician-list"></ul>
         </details>
@@ -152,42 +133,30 @@
           <summary>Task Search & Extract</summary>
           <form id="searchForm">
             <div class="search-grid">
-              <label>
-                From
-                <input id="filterFromDate" name="fromDate" type="date" />
-              </label>
-              <label>
-                To
-                <input id="filterToDate" name="toDate" type="date" />
-              </label>
-              <label>
-                Day type
-                <select id="filterDayType" name="dayType">
-                  <option value="ALL">All</option>
-                  <option value="WEEKDAY">Weekday</option>
-                  <option value="WEEKEND">Weekend</option>
-                  <option value="HOLIDAY">Holiday</option>
-                </select>
-              </label>
-              <label>
-                Quarter
-                <select id="filterQuarter" name="quarter">
-                  <option value="ALL">All</option>
-                  <option value="Q1">Q1 (Jan-Mar)</option>
-                  <option value="Q2">Q2 (Apr-Jun)</option>
-                  <option value="Q3">Q3 (Jul-Sep)</option>
-                  <option value="Q4">Q4 (Oct-Dec)</option>
-                </select>
-              </label>
-              <label>
-                Year
-                <input id="filterYear" name="year" type="number" min="2000" max="2100" step="1" />
-              </label>
+                <label><span class="label-text">From</span><input id="filterFromDate" type="date" /></label>
+                <label><span class="label-text">To</span><input id="filterToDate" type="date" /></label>
+                <label>
+                    <span class="label-text">Type</span>
+                    <select id="filterDayType">
+                        <option value="ALL">All Days</option>
+                        <option value="WEEKDAY">Weekday</option>
+                        <option value="WEEKEND">Weekend</option>
+                        <option value="HOLIDAY">Holiday</option>
+                    </select>
+                </label>
+                <label>
+                    <span class="label-text">Quarter</span>
+                    <select id="filterQuarter">
+                        <option value="ALL">All</option>
+                        <option value="Q1">Q1</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option>
+                    </select>
+                </label>
+                <label><span class="label-text">Year</span><input id="filterYear" type="number" /></label>
             </div>
             <div class="search-actions">
-              <button id="applyQuarterBtn" type="button">Apply quarter to dates</button>
-              <button type="submit">Extract list</button>
-              <button id="resetFiltersBtn" type="button">Reset filters</button>
+              <button id="applyQuarterBtn" type="button" class="btn-ghost">Apply Quarter</button>
+              <button type="submit" class="btn-primary">Extract Results</button>
+              <button id="resetFiltersBtn" type="button" class="btn-secondary">Reset</button>
             </div>
           </form>
           <h3 id="searchResultsTitle"></h3>
@@ -196,91 +165,50 @@
       </section>
     </main>
 
-    <div id="dayPanelBackdrop" class="day-panel-backdrop hidden"></div>
-    <section id="dayPanel" class="day-panel hidden" aria-label="Tasks of selected day">
-      <div class="day-panel-head">
+    <div id="dayPanelBackdrop" class="backdrop hidden"></div>
+    <section id="dayPanel" class="drawer hidden">
+      <div class="drawer-header">
         <h2 id="tasksTitle"></h2>
-        <button id="closeDayPanelBtn" type="button" class="secondary">Close</button>
+        <button id="closeDayPanelBtn" class="btn-close">&times;</button>
       </div>
       <ul id="taskList" class="task-list"></ul>
     </section>
 
-    <div id="quickEditBackdrop" class="day-panel-backdrop hidden"></div>
-    <section id="quickEditModal" class="quick-edit-modal hidden" aria-label="Quick edit task">
-      <div class="day-panel-head">
-        <h2>Quick Edit Task</h2>
-        <button id="closeQuickEditBtn" type="button" class="secondary">Close</button>
-      </div>
-      <form id="quickEditForm">
-        <input id="quickEditTaskId" name="taskId" type="hidden" />
-        <label>
-          Task title
-          <input id="quickEditTitle" name="title" type="text" required maxlength="120" />
-        </label>
-        <div class="date-range-grid">
-          <label>
-            From
-            <input id="quickEditStartDate" name="startDate" type="date" required />
-          </label>
-          <label>
-            To
-            <input id="quickEditEndDate" name="endDate" type="date" required />
-          </label>
+    <div id="quickEditBackdrop" class="backdrop hidden"></div>
+    <section id="quickEditModal" class="modal hidden">
+        <div class="modal-header">
+            <h2>Quick Edit</h2>
+            <button id="closeQuickEditBtn" class="btn-close">&times;</button>
         </div>
-        <label>
-          Technicians
-          <select id="quickEditTechnicians" name="technicians" multiple></select>
-        </label>
-        <fieldset>
-          <legend>Third-party office tickets</legend>
-          <label><input name="tickets" type="checkbox" value="SAAS" /> SAAS</label>
-          <label><input name="tickets" type="checkbox" value="DSO" /> DSO</label>
-          <label><input name="tickets" type="checkbox" value="DEV" /> DEV</label>
-        </fieldset>
-        <div class="ticket-links-grid">
-          <label data-quick-ticket-link-row="SAAS">
-            SAAS support request link (Jira)
-            <input id="quickTicketLinkSAAS" name="ticketLinkSAAS" type="url" />
-          </label>
-          <label data-quick-ticket-link-row="DSO">
-            DSO support request link (Jira)
-            <input id="quickTicketLinkDSO" name="ticketLinkDSO" type="url" />
-          </label>
-          <label data-quick-ticket-link-row="DEV">
-            DEV support request link (Jira)
-            <input id="quickTicketLinkDEV" name="ticketLinkDEV" type="url" />
-          </label>
-        </div>
-        <label>
-          Downtime type
-          <select id="quickEditDowntimeType" name="downtimeType" required>
-            <option value="BACKEND">Backend only</option>
-            <option value="TOTAL">Total</option>
-          </select>
-        </label>
-        <label>
-          Notes
-          <textarea id="quickEditNotes" name="notes" rows="3" maxlength="500"></textarea>
-        </label>
-        <div class="form-actions">
-          <button type="submit">Save changes</button>
-          <button id="cancelQuickEditBtn" type="button" class="secondary">Cancel</button>
-        </div>
-      </form>
+        <form id="quickEditForm" class="modal-body">
+            <input id="quickEditTaskId" name="taskId" type="hidden" />
+            <label><span class="label-text">Title</span><input id="quickEditTitle" name="title" type="text" required /></label>
+            <div class="date-range-grid">
+                <label><span class="label-text">From</span><input id="quickEditStartDate" name="startDate" type="date" /></label>
+                <label><span class="label-text">To</span><input id="quickEditEndDate" name="endDate" type="date" /></label>
+            </div>
+            <label><span class="label-text">Technicians</span><select id="quickEditTechnicians" name="technicians" multiple></select></label>
+            <div class="form-actions">
+                <button type="submit" class="btn-primary">Save Changes</button>
+                <button id="cancelQuickEditBtn" type="button" class="btn-secondary">Cancel</button>
+            </div>
+        </form>
     </section>
 
     <template id="taskItemTemplate">
-      <li class="task-item">
-        <div class="task-main">
+      <li class="task-card">
+        <div class="task-content">
           <h3 class="task-title"></h3>
-          <p class="task-status"></p>
+          <div class="task-tags">
+            <span class="task-status"></span>
+          </div>
           <p class="task-meta"></p>
           <p class="task-alert"></p>
           <p class="task-notes"></p>
         </div>
-        <div class="task-actions">
-          <button class="edit-btn" type="button">Edit</button>
-          <button class="danger delete-btn" type="button">Delete</button>
+        <div class="task-btns">
+          <button class="edit-btn">Edit</button>
+          <button class="delete-btn danger">Delete</button>
         </div>
       </li>
     </template>
